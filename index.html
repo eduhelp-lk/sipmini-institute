@@ -297,6 +297,36 @@
             color: #721c24;
         }
 
+        .status-partial {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .balance-alert {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .balance-alert.negative {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .balance-alert.positive {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+        }
+
+        .balance-amount {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
         .btn-modal-ok {
             background: #667eea;
             color: white;
@@ -433,6 +463,62 @@
             font-weight: bold;
             margin-top: 10px;
         }
+
+        .payment-warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #856404;
+        }
+
+        .payment-warning.excess {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+
+        .payment-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-option {
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-option:active {
+            transform: scale(0.95);
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-option.selected {
+            background: #667eea;
+            color: white;
+        }
+
+        .attendance-note {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #0c5460;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -469,21 +555,20 @@
         </div>
     </div>
 
-    <!-- Subject Selection Modal -->
     <div id="subjectModal" class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
                 <h2>පන්තිය තෝරන්න</h2>
                 <p id="studentNameHeader" style="color: #666; font-size: 16px; margin-top: 5px;"></p>
             </div>
-            <div class="modal-content" id="subjectList">
-                <!-- Subject cards will be inserted here -->
+            <div class="attendance-note">
+                ✅ පැමිණීම ස්වයංක්‍රීයව සටහන් කර ඇත
             </div>
+            <div class="modal-content" id="subjectList"></div>
             <button class="btn-back" onclick="closeSubjectModal()">◄ ආපසු</button>
         </div>
     </div>
 
-    <!-- Error Modal -->
     <div id="errorModal" class="modal-overlay">
         <div class="modal error-modal">
             <div class="modal-header">
@@ -498,13 +583,18 @@
         </div>
     </div>
 
-    <!-- Student Details Modal -->
     <div id="studentModal" class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
                 <h2>ශිෂ්‍ය වාර්තාව</h2>
             </div>
             <div class="modal-content">
+                <div class="attendance-note">
+                    ✅ පැමිණීම සටහන් කර ඇත
+                </div>
+                
+                <div id="balanceAlert"></div>
+                
                 <div class="info-row">
                     <span class="info-label">නම:</span>
                     <span class="info-value" id="studentName"></span>
@@ -518,6 +608,10 @@
                     <span class="info-value" id="teacherName"></span>
                 </div>
                 <div class="info-row">
+                    <span class="info-label">මාසික ගාස්තුව:</span>
+                    <span class="info-value" id="monthlyFee"></span>
+                </div>
+                <div class="info-row">
                     <span class="info-label">මෙම මාසයේ ගෙවීම්:</span>
                     <span class="info-value" id="paymentStatus"></span>
                 </div>
@@ -526,6 +620,9 @@
 
                 <div id="paymentSection" class="payment-section" style="display: none;">
                     <h3 style="text-align: center; margin-bottom: 15px; color: #28a745;">ගෙවන මුදල ඇතුළත් කරන්න</h3>
+                    
+                    <div id="paymentWarning"></div>
+                    
                     <div class="payment-display" id="paymentDisplay">0</div>
                     
                     <div class="payment-keyboard">
@@ -544,13 +641,19 @@
                     </div>
 
                     <button class="btn-confirm-payment" onclick="processPayment()">💵 $ තහවුරු කරන්න</button>
+                    
+                    <div id="paymentOptions" style="display: none;">
+                        <div class="payment-options">
+                            <button class="btn-option" onclick="selectPaymentOption('accept')">භාරගන්න</button>
+                            <button class="btn-option" onclick="selectPaymentOption('edit')">සංස්කරණය</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <button class="btn-modal-ok" onclick="closeStudentModal()">OK</button>
         </div>
     </div>
 
-    <!-- Success Modal -->
     <div id="successModal" class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
@@ -570,32 +673,12 @@
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
-        async function testConnection() {
-            try {
-                const { data, error, count } = await supabase
-                    .from('sipminireport')
-                    .select('*', { count: 'exact' })
-                    .limit(5);
-                
-                console.log('=== DATABASE CONNECTION TEST ===');
-                console.log('Status:', error ? 'Failed - ' + error.message : 'Success');
-                console.log('Total records:', count);
-                console.log('Sample records:', data);
-                if (data && data.length > 0) {
-                    console.log('Columns:', Object.keys(data[0]));
-                }
-                console.log('================================');
-            } catch (e) {
-                console.error('Connection error:', e);
-            }
-        }
-        testConnection();
-        
         let currentDisplay = '';
         let currentStudent = null;
         let paymentAmount = '0';
         let paymentMode = false;
         let availableSubjects = [];
+        let pendingPaymentData = null;
 
         function addDigit(digit) {
             if (digit === '$') {
@@ -636,6 +719,7 @@
                 paymentAmount += digit;
             }
             document.getElementById('paymentDisplay').textContent = paymentAmount;
+            updatePaymentWarning();
         }
 
         function paymentBackspace() {
@@ -644,11 +728,14 @@
                 paymentAmount = '0';
             }
             document.getElementById('paymentDisplay').textContent = paymentAmount;
+            updatePaymentWarning();
         }
 
         function clearPaymentDisplay() {
             paymentAmount = '0';
             document.getElementById('paymentDisplay').textContent = paymentAmount;
+            document.getElementById('paymentWarning').innerHTML = '';
+            document.getElementById('paymentOptions').style.display = 'none';
         }
 
         function showErrorModal(message, debugData = null) {
@@ -677,6 +764,9 @@
             document.getElementById('paymentSection').style.display = 'none';
             paymentAmount = '0';
             document.getElementById('paymentDisplay').textContent = '0';
+            document.getElementById('paymentWarning').innerHTML = '';
+            document.getElementById('paymentOptions').style.display = 'none';
+            pendingPaymentData = null;
             clearDisplay();
         }
 
@@ -700,263 +790,395 @@
             return `${d.getDate()}/${months[d.getMonth()]}/${d.getFullYear()}`;
         }
 
+        function calculateBalance(student) {
+            const monthlyFee = student.monthly_fee;
+            
+            if (monthlyFee === null || monthlyFee === undefined || monthlyFee === 0) {
+                return { balance: 0, type: 'free', months: 0, unpaidAmount: 0, overpaidAmount: 0 };
+            }
+
+            if (!student.sreport || student.sreport.trim() === '' || student.sreport === 'EMPTY') {
+                return { balance: 0, type: 'zero', months: 0, unpaidAmount: 0, overpaidAmount: 0 };
+            }
+
+            const payments = student.payment ? student.payment.split(',').map(p => p.trim()).filter(p => p) : [];
+            
+            // ගෙවූ මුදල් සහ මාස විශ්ලේෂණය
+            const paidMonths = {};
+            let totalPaid = 0;
+            
+            payments.forEach(p => {
+                const match = p.match(/(\d+)\/(\w+)\/(\d+)-(\d+(?:\.\d+)?)/);
+                if (match) {
+                    const [, day, month, year, amount] = match;
+                    const monthKey = `${year}-${month.toLowerCase()}`;
+                    if (!paidMonths[monthKey]) {
+                        paidMonths[monthKey] = 0;
+                    }
+                    paidMonths[monthKey] += parseFloat(amount);
+                    totalPaid += parseFloat(amount);
+                }
+            });
+
+            // පැමිණීම් ඇති මාස හඳුනාගන්න
+            const sreportDates = student.sreport.split(',').map(d => d.trim()).filter(d => d);
+            const attendedMonths = new Set();
+            
+            sreportDates.forEach(dateStr => {
+                const match = dateStr.match(/(\d+)\/(\w+)\/(\d+)/);
+                if (match) {
+                    const [, day, month, year] = match;
+                    attendedMonths.add(`${year}-${month.toLowerCase()}`);
+                }
+            });
+
+            // හිඟ මුදල ගණනය
+            let totalDue = 0;
+            let unpaidMonths = 0;
+            
+            attendedMonths.forEach(monthKey => {
+                const paidForMonth = paidMonths[monthKey] || 0;
+                if (paidForMonth < monthlyFee) {
+                    totalDue += (monthlyFee - paidForMonth);
+                    unpaidMonths++;
+                }
+            });
+
+            const balance = totalPaid - (attendedMonths.size * monthlyFee);
+
+            return {
+                balance: balance,
+                type: balance < 0 ? 'negative' : (balance > 0 ? 'positive' : 'zero'),
+                months: unpaidMonths,
+                unpaidAmount: Math.abs(Math.min(balance, 0)),
+                overpaidAmount: Math.max(balance, 0)
+            };
+        }
+
         function checkCurrentMonthPayment(payment, monthlyFee) {
             if (monthlyFee === null || monthlyFee === undefined || monthlyFee === 0) {
-                return { status: 'FREE CARD', paid: true, canPay: false };
+                return { status: 'FREE CARD', paid: true, canPay: false, paidAmount: 0 };
             }
             
             const now = new Date();
-            const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const currentMonthKey = `${now.getFullYear()}-${monthNames[now.getMonth()].toLowerCase()}`;
+            
             const payments = payment ? payment.split(',').map(p => p.trim()).filter(p => p) : [];
             
-            const currentMonthPayments = payments.filter(p => {
-                const parts = p.split('/');
-                if (parts.length === 3) {
-                    const month = parts[1].toLowerCase();
-                    const year = parts[2];
-                    const monthMap = {
-                        'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-                        'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
-                    };
-                    return `${year}-${monthMap[month]}` === currentMonth;
+            let paidAmount = 0;
+            payments.forEach(p => {
+                const match = p.match(/(\d+)\/(\w+)\/(\d+)-(\d+(?:\.\d+)?)/);
+                if (match) {
+                    const [, day, month, year, amount] = match;
+                    const monthKey = `${year}-${month.toLowerCase()}`;
+                    if (monthKey === currentMonthKey) {
+                        paidAmount += parseFloat(amount);
+                    }
                 }
-                return false;
             });
 
-            if (currentMonthPayments.length > 0) {
-                return { status: 'ගෙවා ඇත', paid: true, canPay: false };
+            if (paidAmount >= monthlyFee) {
+                return { status: 'ගෙවා ඇත', paid: true, canPay: false, paidAmount: paidAmount };
+            } else if (paidAmount > 0) {
+                const shortage = monthlyFee - paidAmount;
+                return { status: `අඩු Rs. ${shortage}`, paid: false, canPay: true, paidAmount: paidAmount };
             } else {
-                return { status: 'ගෙවා නැත', paid: false, canPay: true };
+                return { status: 'ගෙවා නැත', paid: false, canPay: true, paidAmount: 0 };
             }
         }
 
         async function handleOK() {
-            if (!currentDisplay) {
-                showErrorModal('කරුණාකර ශිෂ්‍ය අංකය ඇතුළත් කරන්න');
+            if (currentDisplay === '') {
+                showErrorModal('කරුණාකර ශිෂ්‍ය අංකයක් ඇතුළත් කරන්න');
                 return;
             }
 
-            const studentNo = currentDisplay;
-            const formattedStudentNo = formatStudentNo(studentNo);
+            if (paymentMode) {
+                await processDirectPayment();
+                return;
+            }
 
+            const studentNo = formatStudentNo(currentDisplay);
+            
             try {
-                const { data: students, error: fetchError } = await supabase
+                const { data, error } = await supabase
                     .from('sipminireport')
                     .select('*')
-                    .eq('studentno', formattedStudentNo);
+                    .eq('studentno', studentNo);
 
-                if (fetchError) {
-                    showErrorModal('Database error: ' + fetchError.message, fetchError);
+                if (error) {
+                    showErrorModal('Database දෝෂයක්: ' + error.message, error);
                     return;
                 }
 
-                if (!students || students.length === 0) {
-                    showErrorModal(`ශිෂ්‍යයා සොයාගත නොහැක.\nසෙවූ අංකය: ${formattedStudentNo}`);
+                if (!data || data.length === 0) {
+                    showErrorModal('ශිෂ්‍යයා හමු නොවුණි. අංකය: ' + studentNo);
                     return;
                 }
 
-                availableSubjects = students;
+                // පැමිණීම සටහන් කරන්න
+                const now = new Date();
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const newAttendance = `${now.getDate()}/${monthNames[now.getMonth()]}/${now.getFullYear()}`;
 
-                if (students.length === 1) {
-                    // Only one subject, proceed directly
-                    currentStudent = students[0];
-                    if (paymentMode) {
-                        displayStudentInfo(currentStudent);
-                        showPaymentSection();
+                for (const student of data) {
+                    let updatedSreport = student.sreport || '';
+                    if (updatedSreport && updatedSreport !== 'EMPTY') {
+                        updatedSreport += ', ' + newAttendance;
                     } else {
-                        await markAttendance();
+                        updatedSreport = newAttendance;
                     }
+
+                    const { error: updateError } = await supabase
+                        .from('sipminireport')
+                        .update({ sreport: updatedSreport })
+                        .eq('id', student.id);
+
+                    if (updateError) {
+                        console.error('Error updating attendance:', updateError);
+                    }
+                }
+
+                if (data.length === 1) {
+                    currentStudent = data[0];
+                    currentStudent.sreport = (currentStudent.sreport || '') + (currentStudent.sreport && currentStudent.sreport !== 'EMPTY' ? ', ' : '') + newAttendance;
+                    showStudentDetails();
                 } else {
-                    // Multiple subjects, show selection
-                    showSubjectSelection(students);
+                    availableSubjects = data.map(s => ({
+                        ...s,
+                        sreport: (s.sreport || '') + (s.sreport && s.sreport !== 'EMPTY' ? ', ' : '') + newAttendance
+                    }));
+                    showSubjectSelection(availableSubjects);
                 }
             } catch (error) {
-                showErrorModal('දෝෂයකි', error);
+                showErrorModal('දත්ත ගැනීමේදී දෝෂයක් සිදුවිය', error);
             }
         }
 
         function showSubjectSelection(subjects) {
-            const studentName = subjects[0].studentname;
-            document.getElementById('studentNameHeader').textContent = `ශිෂ්‍ය: ${studentName}`;
-            
+            document.getElementById('studentNameHeader').textContent = `ශිෂ්‍යයා: ${subjects[0].studentname}`;
             const subjectList = document.getElementById('subjectList');
             subjectList.innerHTML = '';
 
             subjects.forEach((subject, index) => {
-                const paymentStatus = checkCurrentMonthPayment(subject.payment, subject.monthly_fee);
-                
                 const card = document.createElement('div');
                 card.className = 'subject-card';
                 card.onclick = () => selectSubject(subject);
-                
-                let statusColor = paymentStatus.paid ? '#28a745' : '#dc3545';
-                let feeText = subject.monthly_fee ? `Rs. ${subject.monthly_fee}` : 'FREE';
+
+                const paymentStatus = checkCurrentMonthPayment(subject.payment, subject.monthly_fee);
+                let statusClass = 'status-unpaid';
+                if (paymentStatus.paid) {
+                    statusClass = 'status-paid';
+                } else if (paymentStatus.paidAmount > 0) {
+                    statusClass = 'status-partial';
+                }
                 
                 card.innerHTML = `
                     <span class="subject-number">${index + 1}</span>
                     <div class="subject-info">
-                        <span class="subject-name">${subject.subject || 'N/A'}</span>
-                        <span class="subject-teacher">ගුරුවරයා: ${subject.teachername || 'N/A'}</span>
-                        <span class="subject-payment" style="color: ${statusColor};">
-                            ${feeText} | ${paymentStatus.status}
+                        <span class="subject-name">${subject.subject}</span>
+                        <span class="subject-teacher">👨‍🏫 ${subject.teachername}</span>
+                        <span class="subject-payment">
+                            <span class="payment-status ${statusClass}">${paymentStatus.status}</span>
                         </span>
                     </div>
                 `;
-                
+
                 subjectList.appendChild(card);
             });
 
             document.getElementById('subjectModal').classList.add('show');
         }
 
-        async function selectSubject(subject) {
+        function selectSubject(subject) {
             currentStudent = subject;
-            closeSubjectModal();
-            
-            if (paymentMode) {
-                displayStudentInfo(currentStudent);
-                showPaymentSection();
-            } else {
-                await markAttendance();
-            }
+            document.getElementById('subjectModal').classList.remove('show');
+            showStudentDetails();
         }
 
-        async function markAttendance() {
-            try {
-                const today = new Date();
-                const attendanceDate = formatDate(today);
-                const newSreport = currentStudent.sreport ? `${currentStudent.sreport}, ${attendanceDate}` : attendanceDate;
-
-                const updateData = { sreport: newSreport };
-                
-                if (currentStudent.treport === null || currentStudent.treport === undefined) {
-                    updateData.treport = 0;
-                }
-                if (currentStudent.ireport === null || currentStudent.ireport === undefined) {
-                    updateData.ireport = 0;
-                }
-
-                const { error: updateError } = await supabase
-                    .from('sipminireport')
-                    .update(updateData)
-                    .eq('id', currentStudent.id);
-
-                if (updateError) {
-                    showErrorModal('පැමිණීම update කිරීමේ දෝෂයකි', updateError);
-                    return;
-                }
-
-                displayStudentInfo(currentStudent);
-                showSuccessModal(`පැමිණීම සාර්ථකයි!\n${currentStudent.studentname}\n${currentStudent.subject}\n${attendanceDate}`);
-            } catch (error) {
-                showErrorModal('පැමිණීම සටහන් කිරීමේ දෝෂයකි', error);
-            }
-        }
-
-        function displayStudentInfo(student) {
-            const monthlyFee = student.monthly_fee;
-            const isFreeCard = (monthlyFee === null || monthlyFee === undefined || monthlyFee === 0);
+        function showStudentDetails() {
+            const paymentStatus = checkCurrentMonthPayment(currentStudent.payment, currentStudent.monthly_fee);
+            const balanceInfo = calculateBalance(currentStudent);
             
-            const paymentStatus = checkCurrentMonthPayment(student.payment, monthlyFee);
-
-            document.getElementById('studentName').textContent = student.studentname || 'N/A';
-            document.getElementById('subject').textContent = student.subject || 'N/A';
-            document.getElementById('teacherName').textContent = student.teachername || 'N/A';
+            document.getElementById('studentName').textContent = currentStudent.studentname;
+            document.getElementById('subject').textContent = currentStudent.subject;
+            document.getElementById('teacherName').textContent = currentStudent.teachername;
             
-            const statusSpan = document.createElement('span');
-            
-            if (isFreeCard) {
-                statusSpan.className = 'payment-status status-paid';
-                statusSpan.textContent = 'FREE CARD';
+            if (currentStudent.monthly_fee === null || currentStudent.monthly_fee === undefined || currentStudent.monthly_fee === 0) {
+                document.getElementById('monthlyFee').textContent = 'FREE CARD';
             } else {
-                statusSpan.className = `payment-status ${paymentStatus.paid ? 'status-paid' : 'status-unpaid'}`;
-                statusSpan.textContent = `${paymentStatus.status} (Rs. ${monthlyFee})`;
+                document.getElementById('monthlyFee').textContent = 'Rs. ' + currentStudent.monthly_fee;
             }
-            
-            document.getElementById('paymentStatus').innerHTML = '';
-            document.getElementById('paymentStatus').appendChild(statusSpan);
 
-            const paymentButton = document.querySelector('.btn-payment');
-            if (isFreeCard || !paymentStatus.canPay) {
-                paymentButton.style.display = 'none';
+            let statusClass = 'status-unpaid';
+            if (paymentStatus.paid) {
+                statusClass = 'status-paid';
+            } else if (paymentStatus.paidAmount > 0) {
+                statusClass = 'status-partial';
+            }
+            document.getElementById('paymentStatus').innerHTML = `<span class="payment-status ${statusClass}">${paymentStatus.status}</span>`;
+
+            const balanceAlert = document.getElementById('balanceAlert');
+            if (balanceInfo.type === 'free') {
+                balanceAlert.innerHTML = `
+                    <div class="balance-alert positive">
+                        <div style="font-size: 18px;">🎉 FREE CARD</div>
+                        <div style="font-size: 14px; margin-top: 5px;">මෙම ශිෂ්‍යයා සඳහා ගාස්තු අය නොකෙරේ</div>
+                    </div>
+                `;
+            } else if (balanceInfo.balance < 0) {
+                balanceAlert.innerHTML = `
+                    <div class="balance-alert negative">
+                        <div style="font-size: 18px;">⚠️ හිඟ මුදල</div>
+                        <div class="balance-amount">Rs. ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
+                        <div style="font-size: 14px; margin-top: 5px;">ගෙවිය යුතු මුළු මුදල</div>
+                    </div>
+                `;
+            } else if (balanceInfo.balance > 0) {
+                balanceAlert.innerHTML = `
+                    <div class="balance-alert positive">
+                        <div style="font-size: 18px;">✓ අතිරේක ගෙවීම</div>
+                        <div class="balance-amount">Rs. ${balanceInfo.balance.toFixed(2)}</div>
+                        <div style="font-size: 14px; margin-top: 5px;">අතිරේකව ගෙවා ඇති මුදල</div>
+                    </div>
+                `;
             } else {
-                paymentButton.style.display = 'block';
+                balanceAlert.innerHTML = `
+                    <div class="balance-alert positive">
+                        <div style="font-size: 18px;">✓ සියල්ල නිරවුල්</div>
+                        <div style="font-size: 14px; margin-top: 5px;">හිඟයක් නොමැත</div>
+                    </div>
+                `;
             }
 
             document.getElementById('studentModal').classList.add('show');
-            document.getElementById('paymentSection').style.display = 'none';
         }
 
         function showPaymentSection() {
+            const paymentStatus = checkCurrentMonthPayment(currentStudent.payment, currentStudent.monthly_fee);
+            
             document.getElementById('paymentSection').style.display = 'block';
             paymentAmount = '0';
             document.getElementById('paymentDisplay').textContent = '0';
         }
 
+        function updatePaymentWarning() {
+            const amount = parseFloat(paymentAmount);
+            const monthlyFee = currentStudent.monthly_fee;
+            const warningDiv = document.getElementById('paymentWarning');
+
+            if (amount > monthlyFee) {
+                const excess = amount - monthlyFee;
+                warningDiv.innerHTML = `
+                    <div class="payment-warning excess">
+                        <strong>⚠️ අතිරේක මුදලක්!</strong><br>
+                        මාසික ගාස්තුව: Rs. ${monthlyFee}<br>
+                        අතිරේකව: Rs. ${excess.toFixed(2)}
+                    </div>
+                `;
+            } else if (amount < monthlyFee && amount > 0) {
+                const shortage = monthlyFee - amount;
+                warningDiv.innerHTML = `
+                    <div class="payment-warning">
+                        <strong>⚠️ අඩු මුදලක්!</strong><br>
+                        මාසික ගාස්තුව: Rs. ${monthlyFee}<br>
+                        අඩුවීම: Rs. ${shortage.toFixed(2)}
+                    </div>
+                `;
+            } else {
+                warningDiv.innerHTML = '';
+            }
+        }
+
         async function processPayment() {
             const amount = parseFloat(paymentAmount);
-            
-            if (!amount || amount <= 0) {
-                showErrorModal('කරුණාකර වලංගු මුදලක් ඇතුළත් කරන්න');
+            const monthlyFee = currentStudent.monthly_fee;
+
+            if (amount === 0) {
+                showErrorModal('කරුණාකර මුදලක් ඇතුළත් කරන්න');
                 return;
             }
 
-            if (!currentStudent) {
-                showErrorModal('කරුණාකර මුලින්ම ශිෂ්‍යයා සොයන්න');
+            if (amount !== monthlyFee) {
+                document.getElementById('paymentOptions').style.display = 'block';
+                pendingPaymentData = { amount: amount };
                 return;
             }
 
+            await confirmPayment(amount);
+        }
+
+        function selectPaymentOption(option) {
+            if (option === 'accept') {
+                confirmPayment(pendingPaymentData.amount);
+            } else {
+                document.getElementById('paymentOptions').style.display = 'none';
+                pendingPaymentData = null;
+            }
+        }
+
+        async function confirmPayment(amount) {
             try {
-                const monthlyFee = currentStudent.monthly_fee;
-                
-                if (monthlyFee === null || monthlyFee === undefined || monthlyFee === 0) {
-                    showErrorModal('මෙය FREE CARD එකකි. ගෙවීම් අවශ්‍ය නැත.');
-                    return;
+                const now = new Date();
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const newPayment = `${now.getDate()}/${monthNames[now.getMonth()]}/${now.getFullYear()}-${amount}`;
+
+                let updatedPayment = currentStudent.payment ? currentStudent.payment : '';
+                if (updatedPayment) {
+                    updatedPayment += ', ' + newPayment;
+                } else {
+                    updatedPayment = newPayment;
                 }
 
-                const monthsCount = Math.floor(amount / monthlyFee);
-                
-                if (monthsCount === 0) {
-                    showErrorModal(`ගෙවන මුදල මාසික ගාස්තුවට වඩා අඩුයි\nමාසික ගාස්තුව: Rs. ${monthlyFee}`);
-                    return;
-                }
+                // T Report සහ I Report update කරන්න
+                const tAmount = (amount * 0.8).toFixed(2);
+                const iAmount = (amount * 0.2).toFixed(2);
 
-                const today = new Date();
-                let paymentEntries = [];
-                
-                for (let i = 0; i < monthsCount; i++) {
-                    const paymentDate = new Date(today.getFullYear(), today.getMonth() + i, today.getDate());
-                    paymentEntries.push(formatDate(paymentDate));
-                }
+                let updatedTreport = currentStudent.treport || '0';
+                let updatedIreport = currentStudent.ireport || '0';
 
-                const newPayment = currentStudent.payment 
-                    ? `${currentStudent.payment}, ${paymentEntries.join(', ')}` 
-                    : paymentEntries.join(', ');
+                const currentTreport = parseFloat(updatedTreport) || 0;
+                const currentIreport = parseFloat(updatedIreport) || 0;
 
-                const teacherAmount = parseFloat(currentStudent.treport || 0) + (amount * 0.8);
-                const instituteAmount = parseFloat(currentStudent.ireport || 0) + (amount * 0.2);
+                updatedTreport = (currentTreport + parseFloat(tAmount)).toFixed(2);
+                updatedIreport = (currentIreport + parseFloat(iAmount)).toFixed(2);
 
-                const { error: updateError } = await supabase
+                const { error } = await supabase
                     .from('sipminireport')
-                    .update({
-                        payment: newPayment,
-                        treport: teacherAmount.toFixed(2),
-                        ireport: instituteAmount.toFixed(2)
+                    .update({ 
+                        payment: updatedPayment,
+                        treport: updatedTreport,
+                        ireport: updatedIreport
                     })
                     .eq('id', currentStudent.id);
 
-                if (updateError) {
-                    showErrorModal('Payment update error', updateError);
-                    return;
-                }
+                if (error) throw error;
 
+                showSuccessModal(`ගෙවීම සාර්ථකව සටහන් කරන ලදී!\nමුදල: Rs. ${amount}\nT Report: +Rs. ${tAmount}\nI Report: +Rs. ${iAmount}`);
                 closeStudentModal();
-                showSuccessModal(`ගෙවීම සාර්ථකයි!\n${currentStudent.studentname}\n${currentStudent.subject}\n${currentStudent.teachername}\nමාස ${monthsCount} - Rs. ${amount}`);
-                
-                paymentAmount = '0';
             } catch (error) {
-                console.error('Payment error:', error);
-                showErrorModal('ගෙවීම සැකසීමේ දෝෂයකි', error);
+                showErrorModal('ගෙවීම සටහන් කිරීමේදී දෝෂයක් සිදුවිය', error);
+            }
+        }
+
+        async function processDirectPayment() {
+            showErrorModal('සෘජු ගෙවීම් ක්‍රියාත්මක කිරීමට නොහැකිය. කරුණාකර ශිෂ්‍යයා තෝරා ගෙවීම සටහන් කරන්න.');
+            paymentMode = false;
+            clearDisplay();
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                if (event.target.id === 'subjectModal') {
+                    closeSubjectModal();
+                } else if (event.target.id === 'studentModal') {
+                    closeStudentModal();
+                } else if (event.target.id === 'errorModal') {
+                    closeErrorModal();
+                } else if (event.target.id === 'successModal') {
+                    closeSuccessModal();
+                }
             }
         }
     </script>
