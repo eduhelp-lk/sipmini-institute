@@ -519,6 +519,66 @@
             color: #0c5460;
             font-size: 14px;
         }
+
+        .duplicate-warning {
+            background: #fff3cd;
+            border: 3px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .warning-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .time-info {
+            font-size: 20px;
+            font-weight: bold;
+            color: #856404;
+            margin: 10px 0;
+        }
+
+        .duplicate-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn-confirm {
+            background: #28a745;
+            color: white;
+            padding: 18px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            background: #dc3545;
+            color: white;
+            padding: 18px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-confirm:active, .btn-cancel:active {
+            transform: scale(0.95);
+        }
+
+        .duplicate-modal .modal-header h2 {
+            color: #ffc107;
+        }
     </style>
 </head>
 <body>
@@ -550,6 +610,29 @@
                 <div class="action-btns">
                     <button class="btn btn-ok" onclick="handleOK()">✓ OK</button>
                     <button class="btn btn-clear" onclick="clearDisplay()">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="duplicateModal" class="modal-overlay">
+        <div class="modal duplicate-modal">
+            <div class="modal-header">
+                <div class="warning-icon">⚠️</div>
+                <h2>අනතුරු ඇඟවීම</h2>
+            </div>
+            <div class="modal-content">
+                <div class="duplicate-warning">
+                    <div style="font-size: 18px; margin-bottom: 10px;">මෙම අංකය දැනටමත් ඇතුළු කර ඇත</div>
+                    <div class="time-info" id="timeAgo"></div>
+                    <div style="font-size: 16px; color: #666; margin-top: 10px;" id="studentNoDisplay"></div>
+                </div>
+                <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 15px;">
+                    අනුමත කරන්න ද?
+                </div>
+                <div class="duplicate-actions">
+                    <button class="btn-confirm" onclick="confirmDuplicate()">✓ අනුමත කරන්න</button>
+                    <button class="btn-cancel" onclick="cancelDuplicate()">✗ එපා</button>
                 </div>
             </div>
         </div>
@@ -679,6 +762,10 @@
         let paymentMode = false;
         let availableSubjects = [];
         let pendingPaymentData = null;
+        let pendingStudentNo = null;
+        let isDuplicateConfirmed = false;
+
+        const DUPLICATE_CHECK_MINUTES = 90;
 
         function addDigit(digit) {
             if (digit === '$') {
@@ -790,6 +877,48 @@
             return `${d.getDate()}/${months[d.getMonth()]}/${d.getFullYear()}`;
         }
 
+        function checkDuplicateEntry(studentNo) {
+            const lastEntries = JSON.parse(localStorage.getItem('lastEntries') || '{}');
+            const lastEntry = lastEntries[studentNo];
+            
+            if (lastEntry) {
+                const lastTime = new Date(lastEntry);
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / (1000 * 60));
+                
+                if (diffMinutes < DUPLICATE_CHECK_MINUTES) {
+                    return { isDuplicate: true, minutesAgo: diffMinutes };
+                }
+            }
+            
+            return { isDuplicate: false };
+        }
+
+        function saveEntry(studentNo) {
+            const lastEntries = JSON.parse(localStorage.getItem('lastEntries') || '{}');
+            lastEntries[studentNo] = new Date().toISOString();
+            localStorage.setItem('lastEntries', JSON.stringify(lastEntries));
+        }
+
+        function showDuplicateModal(studentNo, minutesAgo) {
+            document.getElementById('timeAgo').textContent = `විනාඩි ${minutesAgo}කට පෙර`;
+            document.getElementById('studentNoDisplay').textContent = `ශිෂ්‍ය අංකය: ${studentNo}`;
+            document.getElementById('duplicateModal').classList.add('show');
+        }
+
+        function confirmDuplicate() {
+            document.getElementById('duplicateModal').classList.remove('show');
+            isDuplicateConfirmed = true;
+            proceedWithEntry();
+        }
+
+        function cancelDuplicate() {
+            document.getElementById('duplicateModal').classList.remove('show');
+            pendingStudentNo = null;
+            isDuplicateConfirmed = false;
+            clearDisplay();
+        }
+
         function calculateBalance(student) {
             const monthlyFee = student.monthly_fee;
             
@@ -803,7 +932,6 @@
 
             const payments = student.payment ? student.payment.split(',').map(p => p.trim()).filter(p => p) : [];
             
-            // ගෙවූ මුදල් සහ මාස විශ්ලේෂණය
             const paidMonths = {};
             let totalPaid = 0;
             
@@ -820,7 +948,6 @@
                 }
             });
 
-            // පැමිණීම් ඇති මාස හඳුනාගන්න
             const sreportDates = student.sreport.split(',').map(d => d.trim()).filter(d => d);
             const attendedMonths = new Set();
             
@@ -832,7 +959,6 @@
                 }
             });
 
-            // හිඟ මුදල ගණනය
             let totalDue = 0;
             let unpaidMonths = 0;
             
@@ -900,6 +1026,20 @@
             }
 
             const studentNo = formatStudentNo(currentDisplay);
+            pendingStudentNo = studentNo;
+            
+            const duplicateCheck = checkDuplicateEntry(studentNo);
+            
+            if (duplicateCheck.isDuplicate && !isDuplicateConfirmed) {
+                showDuplicateModal(studentNo, duplicateCheck.minutesAgo);
+                return;
+            }
+            
+            await proceedWithEntry();
+        }
+
+        async function proceedWithEntry() {
+            const studentNo = pendingStudentNo;
             
             try {
                 const { data, error } = await supabase
@@ -917,7 +1057,9 @@
                     return;
                 }
 
-                // පැමිණීම සටහන් කරන්න
+                saveEntry(studentNo);
+                isDuplicateConfirmed = false;
+
                 const now = new Date();
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const newAttendance = `${now.getDate()}/${monthNames[now.getMonth()]}/${now.getFullYear()}`;
@@ -1131,7 +1273,6 @@
                     updatedPayment = newPayment;
                 }
 
-                // T Report සහ I Report update කරන්න
                 const tAmount = (amount * 0.8).toFixed(2);
                 const iAmount = (amount * 0.2).toFixed(2);
 
