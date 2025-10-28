@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPMINI Admin Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #dee2e6;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary { background: #667eea; }
+        .btn-secondary { background: #6c757d; }
+        .btn-danger { background: #dc3545; }
+        .btn-warning { background: #ffc107; color: #000; }
+        .btn-info { background: #17a2b8; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .student-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .class-item {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .class-info {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .class-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .report-container {
+            background: white;
+            padding: 30px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+        }
+
+        .report-section {
+            margin-bottom: 25px;
+        }
+
+        .report-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .helper-text {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .modal-content {
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .search-box input {
+            margin-bottom: 10px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-buttons .btn {
+            margin: 0;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 SIPMINI Admin Panel</h1>
+        <p class="subtitle">Complete Management System - Multi-Class Support with Edit Features</p>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="manage">📝 Manage Students</button>
+            <button class="tab" data-tab="edit">✏️ Edit Records</button>
+            <button class="tab" data-tab="accounts">💰 Accounts Report</button>
+            <button class="tab" data-tab="student">👨‍🎓 Student Report</button>
+            <button class="tab" data-tab="teacher">👨‍🏫 Teacher Report</button>
+        </div>
+
+        <div id="alertBox" class="alert"></div>
+
+        <!-- Manage Students Tab -->
+        <div id="manage-tab" class="tab-content active">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalStudents">0</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalClasses">0</div>
+                    <div class="stat-label">Total Classes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="freeClasses">0</div>
+                    <div class="stat-label">Free Classes</div>
+                </div>
+            </div>
+
+            <form id="studentForm">
+                <div class="form-group">
+                    <label>Student Number *</label>
+                    <input type="text" id="studentno" placeholder="s0001" required>
+                    <div class="helper-text">Format: s0001, s0002, etc. Same number for multiple classes</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Student Name *</label>
+                    <input type="text" id="studentname" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Teacher Name *</label>
+                    <input type="text" id="teachername" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Subject *</label>
+                    <input type="text" id="subject" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" id="phoneno">
+                </div>
+
+                <div class="form-group">
+                    <label>Monthly Fee *</label>
+                    <input type="number" id="monthly_fee" placeholder="0 = FREE" required>
+                </div>
+
+                <button type="submit" class="btn">➕ Add Class</button>
+                <button type="button" class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+            </form>
+
+            <div style="margin-top: 30px;">
+                <h2 style="color: #667eea;">📋 Current Students & Classes</h2>
+                <div id="studentsList"></div>
+            </div>
+        </div>
+
+        <!-- Edit Records Tab -->
+        <div id="edit-tab" class="tab-content">
+            <div class="search-box">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🔍 Search & Edit Records</h3>
+                
+                <div class="form-group">
+                    <label>Search by:</label>
+                    <input type="text" id="searchInput" placeholder="Student number, name, teacher, or subject">
+                </div>
+
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="searchRecords()">🔍 Search</button>
+                    <button class="btn btn-secondary" onclick="showAllRecords()">📋 Show All</button>
+                    <button class="btn btn-info" onclick="filterByTeacher()">👨‍🏫 Filter by Teacher</button>
+                    <button class="btn btn-warning" onclick="filterBySubject()">📚 Filter by Subject</button>
+                </div>
+            </div>
+
+            <div id="editSearchResults"></div>
+        </div>
+
+        <!-- Accounts Report Tab -->
+        <div id="accounts-tab" class="tab-content">
+            <div class="form-group">
+                <label>Select Month:</label>
+                <input type="month" id="accountsMonth">
+            </div>
+            <button class="btn btn-primary" id="generateAccountsBtn">Generate Report</button>
+            <div id="accountsReport"></div>
+        </div>
+
+        <!-- Student Report Tab -->
+        <div id="student-tab" class="tab-content">
+            <div class="form-group">
+                <label>Select Student Number:</label>
+                <select id="studentSelect">
+                    <option value="">-- Select Student --</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="generateStudentBtn">Generate Report</button>
+            <div id="studentReport"></div>
+        </div>
+
+        <!-- Teacher Report Tab -->
+        <div id="teacher-tab" class="tab-content">
+            <div class="form-group">
+                <label>Select Teacher:</label>
+                <select id="teacherSelect">
+                    <option value="">-- Select Teacher --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Select Month:</label>
+                <input type="month" id="teacherMonth">
+            </div>
+            <button class="btn btn-primary" id="generateTeacherBtn">Generate Report</button>
+            <div id="teacherReport"></div>
+        </div>
+    </div>
+
+    <!-- Existing Student Modal -->
+    <div id="existingStudentModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚠️ ශිෂ්‍ය අංකය දැනටමත් තිබේ</h2>
+            </div>
+            <div class="modal-content">
+                <div class="info-box">
+                    <div class="info-row">
+                        <strong>අංකය:</strong>
+                        <span id="existingStudentNo"></span>
+                    </div>
+                    <div class="info-row">
+                        <strong>නම:</strong>
+                        <span id="existingStudentName"></span>
+                    </div>
+                    <div class="info-row">
+                        <strong>දුරකථන:</strong>
+                        <span id="existingStudentPhone"></span>
+                    </div>
+                </div>
+                <p style="margin-bottom: 15px; text-align: center; color: #666;">
+                    මෙම ශිෂ්‍යයා සඳහා නව පන්තියක් එකතු කරන්නද?
+                </p>
+                <div id="existingClasses" style="margin-bottom: 15px;">
+                    <strong>වත්මන් පන්ති:</strong>
+                    <div id="existingClassesList"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="addNewClass()">✓ නව පන්තිය එකතු කරන්න</button>
+                <button class="btn btn-secondary" onclick="closeExistingStudentModal()">අවලංගු කරන්න</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Record Modal -->
+    <div id="editRecordModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>✏️ සංස්කරණය කරන්න - Edit Record</h2>
+            </div>
+            <div class="modal-content">
+                <input type="hidden" id="editRecordId">
+                
+                <div class="form-group">
+                    <label>Student Number *</label>
+                    <input type="text" id="editStudentNo" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Student Name *</label>
+                    <input type="text" id="editStudentName" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Teacher Name *</label>
+                    <input type="text" id="editTeacherName" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Subject *</label>
+                    <input type="text" id="editSubject" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" id="editPhoneNo">
+                </div>
+
+                <div class="form-group">
+                    <label>Monthly Fee *</label>
+                    <input type="number" id="editMonthlyFee" required>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="saveEditedRecord()">💾 Save Changes</button>
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://uqgzlaxsnknheoerbfus.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxZ3psYXhzbmtuaGVvZXJiZnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4MDQzMTEsImV4cCI6MjA2MDM4MDMxMX0.O5dNUizqZ5kfwTs0mHLEorqOAqjZFjWakp2Q484MKEk';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let pendingClassData = null;
+        let existingStudentData = null;
+        let allRecords = [];
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                this.classList.add('active');
+                document.getElementById(tabName + '-tab').classList.add('active');
+
+                if (tabName === 'student') loadStudentDropdown();
+                if (tabName === 'teacher') loadTeacherDropdown();
+                if (tabName === 'edit') showAllRecords();
+            });
+        });
+
+        function showAlert(message, type = 'success') {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.className = `alert alert-${type} show`;
+            alertBox.textContent = message;
+            setTimeout(() => alertBox.classList.remove('show'), 5000);
+        }
+
+        function setDefaultMonth() {
+            const now = new Date();
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const monthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+            document.getElementById('accountsMonth').value = monthStr;
+            document.getElementById('teacherMonth').value = monthStr;
+        }
+        setDefaultMonth();
+
+        // Load Students
+        async function loadStudents() {
+            try {
+                const { data: classes, error } = await supabase
+                    .from('sipminireport')
+                    .select('*')
+                    .order('studentno', { ascending: true });
+
+                if (error) throw error;
+
+                allRecords = classes || [];
+
+                const studentsList = document.getElementById('studentsList');
+                
+                if (!classes || classes.length === 0) {
+                    studentsList.innerHTML = '<p style="text-align: center; color: #999;">No students</p>';
+                    updateStats(0, 0, 0);
+                    return;
+                }
+
+                const grouped = {};
+                classes.forEach(c => {
+                    if (!grouped[c.studentno]) {
+                        grouped[c.studentno] = {
+                            studentname: c.studentname,
+                            phoneno: c.phoneno,
+                            classes: []
+                        };
+                    }
+                    grouped[c.studentno].classes.push(c);
+                });
+
+                let totalClasses = classes.length;
+                let freeCount = 0;
+
+                studentsList.innerHTML = Object.entries(grouped).map(([studentno, data]) => {
+                    const classesHTML = data.classes.map(c => {
+                        const fee = parseFloat(c.monthly_fee) || 0;
+                        if (fee === 0) freeCount++;
+                        
+                        return `
+                            <div class="class-item">
+                                <div class="class-info">
+                                    <strong>${c.subject}</strong> - ${c.teachername} | Rs. ${fee} ${fee === 0 ? '(FREE)' : ''}
+                                </div>
+                                <div class="class-actions">
+                                    <button class="btn btn-info" style="padding: 8px 15px; margin: 0;" onclick="editRecord(${c.id})">✏️ Edit</button>
+                                    <button class="btn btn-danger" style="padding: 8px 15px; margin: 0;" onclick="deleteClass(${c.id}, '${c.studentname}', '${c.subject}')">🗑️ Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="student-card">
+                            <h3>${data.studentname} (${studentno})</h3>
+                            <p><strong>Phone:</strong> ${data.phoneno || 'N/A'} | <strong>Classes:</strong> ${data.classes.length}</p>
+                            ${classesHTML}
+                        </div>
+                    `;
+                }).join('');
+
+                updateStats(Object.keys(grouped).length, totalClasses, freeCount);
+            } catch (error) {
+                showAlert('Error loading students', 'error');
+            }
+        }
+
+        function updateStats(totalStudents, totalClasses, freeClasses) {
+            document.getElementById('totalStudents').textContent = totalStudents;
+            document.getElementById('totalClasses').textContent = totalClasses;
+            document.getElementById('freeClasses').textContent = freeClasses;
+        }
+
+        // Add Student/Class
+        document.getElementById('studentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const studentData = {
+                studentno: document.getElementById('studentno').value.trim().toLowerCase(),
+                studentname: document.getElementById('studentname').value.trim(),
+                teachername: document.getElementById('teachername').value.trim(),
+                subject: document.getElementById('subject').value.trim(),
+                phoneno: document.getElementById('phoneno').value.trim(),
+                monthly_fee: parseFloat(document.getElementById('monthly_fee').value) || 0,
+                treport: 0,
+                ireport: 0
+            };
+
+            if (!studentData.studentno.match(/^s\d{4}$/)) {
+                showAlert('Student number must be in format s0001', 'error');
+                return;
+            }
+
+            try {
+                const { data: existing } = await supabase
+                    .from('sipminireport')
+                    .select('*')
+                    .eq('studentno', studentData.studentno);
+
+                if (existing && existing.length > 0) {
+                    const duplicate = existing.find(s => 
+                        s.subject.toLowerCase() === studentData.subject.toLowerCase() && 
+                        s.teachername.toLowerCase() === studentData.teachername.toLowerCase()
+                    );
+
+                    if (duplicate) {
+                        showAlert('මෙම ශිෂ්‍යයා මෙම පන්තිය දැනටමත් follow කරයි!', 'error');
+                        return;
+                    }
+
+                    showExistingStudentModal(existing, studentData);
+                    return;
+                }
+
+                await insertStudent(studentData);
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        });
+
+        function showExistingStudentModal(existingClasses, newClassData) {
+            existingStudentData = existingClasses[0];
+            pendingClassData = newClassData;
+
+            document.getElementById('existingStudentNo').textContent = existingStudentData.studentno;
+            document.getElementById('existingStudentName').textContent = existingStudentData.studentname;
+            document.getElementById('existingStudentPhone').textContent = existingStudentData.phoneno || 'N/A';
+
+            const classList = existingClasses.map(c => 
+                `<div style="background: white; padding: 8px; margin: 5px 0; border-radius: 5px; border-left: 3px solid #667eea;">${c.subject} - ${c.teachername}</div>`
+            ).join('');
+            document.getElementById('existingClassesList').innerHTML = classList;
+
+            document.getElementById('existingStudentModal').classList.add('show');
+        }
+
+        function closeExistingStudentModal() {
+            document.getElementById('existingStudentModal').classList.remove('show');
+            pendingClassData = null;
+            existingStudentData = null;
+        }
+
+        async function addNewClass() {
+            if (!pendingClassData || !existingStudentData) return;
+
+            pendingClassData.studentname = existingStudentData.studentname;
+            pendingClassData.phoneno = existingStudentData.phoneno;
+
+            await insertStudent(pendingClassData);
+            closeExistingStudentModal();
+        }
+
+        async function insertStudent(studentData) {
+            try {
+                const { error } = await supabase
+                    .from('sipminireport')
+                    .insert([studentData]);
+
+                if (error) throw error;
+
+                showAlert(`✓ ${studentData.subject} පන්තිය ${studentData.studentname} සඳහා එකතු කරන ලදි!`, 'success');
+                document.getElementById('studentForm').reset();
+                loadStudents();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadStudents);
+
+        // Edit Record Functions
+        function editRecord(id) {
+            const record = allRecords.find(r => r.id === id);
+            if (!record) {
+                showAlert('Record not found', 'error');
+                return;
+            }
+
+            document.getElementById('editRecordId').value = record.id;
+            document.getElementById('editStudentNo').value = record.studentno;
+            document.getElementById('editStudentName').value = record.studentname;
+            document.getElementById('editTeacherName').value = record.teachername;
+            document.getElementById('editSubject').value = record.subject;
+            document.getElementById('editPhoneNo').value = record.phoneno || '';
+            document.getElementById('editMonthlyFee').value = record.monthly_fee || 0;
+
+            document.getElementById('editRecordModal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editRecordModal').classList.remove('show');
+        }
+
+        async function saveEditedRecord() {
+            const id = parseInt(document.getElementById('editRecordId').value);
+            
+            const updatedData = {
+                studentno: document.getElementById('editStudentNo').value.trim().toLowerCase(),
+                studentname: document.getElementById('editStudentName').value.trim(),
+                teachername: document.getElementById('editTeacherName').value.trim(),
+                subject: document.getElementById('editSubject').value.trim(),
+                phoneno: document.getElementById('editPhoneNo').value.trim(),
+                monthly_fee: parseFloat(document.getElementById('editMonthlyFee').value) || 0
+            };
+
+            if (!updatedData.studentno.match(/^s\d{4}$/)) {
+                showAlert('Student number must be in format s0001', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('sipminireport')
+                    .update(updatedData)
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showAlert('✓ Record updated successfully!', 'success');
+                closeEditModal();
+                loadStudents();
+                showAllRecords();
+            } catch (error) {
+                showAlert('Error updating record: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteClass(id, name, subject) {
+            if (!confirm(`Delete ${subject} class for ${name}?`)) return;
+
+            try {
+                const { error } = await supabase
+                    .from('sipminireport')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                showAlert(`✓ ${subject} class deleted`, 'success');
+                loadStudents();
+            } catch (error) {
+                showAlert('Delete error', 'error');
+            }
+        }
+
+        // Search and Filter Functions
+        async function searchRecords() {
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            
+            if (!searchTerm) {
+                showAlert('Please enter search term', 'error');
+                return;
+            }
+
+            const filtered = allRecords.filter(r => 
+                r.studentno.toLowerCase().includes(searchTerm) ||
+                r.studentname.toLowerCase().includes(searchTerm) ||
+                r.teachername.toLowerCase().includes(searchTerm) ||
+                r.subject.toLowerCase().includes(searchTerm)
+            );
+
+            displaySearchResults(filtered, `Search Results for "${searchTerm}"`);
+        }
+
+        async function showAllRecords() {
+            if (allRecords.length === 0) {
+                await loadStudents();
+            }
+            displaySearchResults(allRecords, 'All Records');
+        }
+
+        async function filterByTeacher() {
+            const teachers = [...new Set(allRecords.map(r => r.teachername))];
+            
+            const teacher = prompt('Enter teacher name:\n\nAvailable teachers:\n' + teachers.join('\n'));
+            
+            if (!teacher) return;
+
+            const filtered = allRecords.filter(r => 
+                r.teachername.toLowerCase().includes(teacher.toLowerCase())
+            );
+
+            displaySearchResults(filtered, `Classes by ${teacher}`);
+        }
+
+        async function filterBySubject() {
+            const subjects = [...new Set(allRecords.map(r => r.subject))];
+            
+            const subject = prompt('Enter subject name:\n\nAvailable subjects:\n' + subjects.join('\n'));
+            
+            if (!subject) return;
+
+            const filtered = allRecords.filter(r => 
+                r.subject.toLowerCase().includes(subject.toLowerCase())
+            );
+
+            displaySearchResults(filtered, `${subject} Classes`);
+        }
+
+        function displaySearchResults(records, title) {
+            const resultsDiv = document.getElementById('editSearchResults');
+            
+            if (!records || records.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align: center; color: #999;">No records found</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = `
+                <h3 style="color: #667eea; margin-bottom: 20px;">${title} (${records.length} records)</h3>
+                ${records.map(r => `
+                    <div class="student-card">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap;">
+                            <div>
+                                <h3 style="margin-bottom: 5px;">${r.studentname} (${r.studentno})</h3>
+                                <p><strong>Subject:</strong> ${r.subject} | <strong>Teacher:</strong> ${r.teachername}</p>
+                                <p><strong>Phone:</strong> ${r.phoneno || 'N/A'} | <strong>Monthly Fee:</strong> Rs. ${r.monthly_fee || 0}</p>
+                            </div>
+                            <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                <button class="btn btn-info" style="padding: 8px 15px; margin: 0;" onclick="editRecord(${r.id})">✏️ Edit</button>
+                                <button class="btn btn-danger" style="padding: 8px 15px; margin: 0;" onclick="deleteClass(${r.id}, '${r.studentname}', '${r.subject}')">🗑️ Delete</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-top: 10px;">
+                            <strong>Attendance:</strong> ${r.sreport ? r.sreport.split(',').length : 0} days | 
+                            <strong>Payments:</strong> ${r.payment ? r.payment.split(',').length : 0} months
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // Load Student Dropdown
+        async function loadStudentDropdown() {
+            try {
+                const { data: students } = await supabase
+                    .from('sipminireport')
+                    .select('studentno, studentname')
+                    .order('studentname');
+
+                const uniqueStudents = {};
+                students.forEach(s => {
+                    if (!uniqueStudents[s.studentno]) {
+                        uniqueStudents[s.studentno] = s.studentname;
+                    }
+                });
+
+                const select = document.getElementById('studentSelect');
+                select.innerHTML = '<option value="">-- Select Student --</option>' +
+                    Object.entries(uniqueStudents).map(([no, name]) => 
+                        `<option value="${no}">${name} (${no})</option>`
+                    ).join('');
+            } catch (error) {
+                showAlert('Error loading students', 'error');
+            }
+        }
+
+        // Generate Student Report
+        document.getElementById('generateStudentBtn').addEventListener('click', async () => {
+            const studentNo = document.getElementById('studentSelect').value;
+            if (!studentNo) {
+                showAlert('Please select a student', 'error');
+                return;
+            }
+
+            try {
+                const { data: classes } = await supabase
+                    .from('sipminireport')
+                    .select('*')
+                    .eq('studentno', studentNo);
+
+                if (!classes || classes.length === 0) {
+                    showAlert('No data found', 'error');
+                    return;
+                }
+
+                const student = classes[0];
+
+                let reportHTML = `
+                    <div class="report-container" id="studentReportContent">
+                        <div class="report-header">
+                            <h2>👨‍🎓 ශිෂ්‍ය වාර්තාව - Student Report</h2>
+                            <h3>${student.studentname} (${student.studentno})</h3>
+                            <p>Phone: ${student.phoneno || 'N/A'}</p>
+                        </div>
+
+                        ${classes.map(cls => {
+                            const attendances = cls.sreport ? cls.sreport.split(',').map(a => a.trim()) : [];
+                            const payments = cls.payment ? cls.payment.split(',').map(p => p.trim()) : [];
+                            const balance = parseFloat(cls.balance_amount) || 0;
+
+                            return `
+                                <div class="report-section">
+                                    <h3>${cls.subject} - ${cls.teachername}</h3>
+                                    <table>
+                                        <tr><th>Field</th><th>Value</th></tr>
+                                        <tr><td>Monthly Fee</td><td>Rs. ${cls.monthly_fee || 0}</td></tr>
+                                        <tr><td>Total Attendance</td><td>${attendances.length}</td></tr>
+                                        <tr><td>Total Payments</td><td>${payments.length}</td></tr>
+                                        <tr><td>Balance</td><td>Rs. ${balance.toFixed(2)} ${balance < 0 ? '(හිඟ)' : ''}</td></tr>
+                                    </table>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                reportHTML += `
+                    <div class="report-actions">
+                        <button class="btn btn-primary" onclick="copyToWhatsApp('studentReportContent')">📋 Copy to WhatsApp</button>
+                        <button class="btn btn-warning" onclick="savePDF('studentReportContent', 'Student_${student.studentno}')">📄 Save PDF</button>
+                    </div>
+                `;
+
+                document.getElementById('studentReport').innerHTML = reportHTML;
+            } catch (error) {
+                showAlert('Error generating report', 'error');
+            }
+        });
+
+        function copyToWhatsApp(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const tables = element.querySelectorAll('table');
+            let text = element.querySelector('.report-header').innerText + '\n\n';
+
+            tables.forEach((table) => {
+                const section = table.closest('.report-section');
+                if (section) {
+                    text += section.querySelector('h3').innerText + '\n';
+                }
+
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('th, td');
+                    const rowText = Array.from(cells).map(cell => cell.innerText).join(' | ');
+                    text += rowText + '\n';
+                });
+                text += '\n';
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('✓ Copied to clipboard! Ready to paste in WhatsApp', 'success');
+            }).catch(() => {
+                showAlert('Failed to copy. Please try again.', 'error');
+            });
+        }
+
+        function savePDF(elementId, filename) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const opt = {
+                margin: 10,
+                filename: filename + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+            showAlert('✓ PDF is being generated...', 'success');
+        }
+
+        // Load Teacher Dropdown
+        async function loadTeacherDropdown() {
+            try {
+                const { data: students } = await supabase
+                    .from('sipminireport')
+                    .select('teachername');
+
+                const teachers = [...new Set(students.map(s => s.teachername))];
+                const select = document.getElementById('teacherSelect');
+                select.innerHTML = '<option value="">-- Select Teacher --</option>' +
+                    teachers.map(t => `<option value="${t}">${t}</option>`).join('');
+            } catch (error) {
+                showAlert('Error loading teachers', 'error');
+            }
+        }
+
+        // Generate Accounts Report
+        document.getElementById('generateAccountsBtn').addEventListener('click', async () => {
+            const monthInput = document.getElementById('accountsMonth').value;
+            if (!monthInput) {
+                showAlert('Please select a month', 'error');
+                return;
+            }
+
+            try {
+                const { data: students, error } = await supabase
+                    .from('sipminireport')
+                    .select('*');
+
+                if (error) throw error;
+
+                const [year, month] = monthInput.split('-');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthName = monthNames[parseInt(month) - 1];
+
+                let totalAttendance = 0;
+                let totalCollection = 0;
+                let totalTeacherPayment = 0;
+                let totalInstituteIncome = 0;
+                let teacherPayments = {};
+
+                students.forEach(s => {
+                    if (s.sreport) {
+                        const attendances = s.sreport.split(',').map(a => a.trim());
+                        attendances.forEach(att => {
+                            if (att.includes(`/${monthName}/${year}`)) {
+                                totalAttendance++;
+                            }
+                        });
+                    }
+
+                    if (s.payment) {
+                        const payments = s.payment.split(',').map(p => p.trim());
+                        payments.forEach(pay => {
+                            if (pay.includes(`/${monthName}/${year}`)) {
+                                const fee = parseFloat(s.monthly_fee) || 0;
+                                totalCollection += fee;
+                                const teacherShare = fee * 0.8;
+                                const instituteShare = fee * 0.2;
+                                
+                                if (!teacherPayments[s.teachername]) {
+                                    teacherPayments[s.teachername] = 0;
+                                }
+                                teacherPayments[s.teachername] += teacherShare;
+                                totalTeacherPayment += teacherShare;
+                                totalInstituteIncome += instituteShare;
+                            }
+                        });
+                    }
+                });
+
+                let reportHTML = `
+                    <div class="report-container" id="accountsReportContent">
+                        <div class="report-header">
+                            <h2>📊 ගිණුම් වාර්තාව - Accounts Report</h2>
+                            <h3>${monthName} ${year}</h3>
+                        </div>
+
+                        <div class="report-section">
+                            <h3>📈 Summary</h3>
+                            <table>
+                                <tr><th>Description</th><th>Amount</th></tr>
+                                <tr><td>Total Attendance</td><td>${totalAttendance}</td></tr>
+                                <tr><td>Total Collection</td><td>Rs. ${totalCollection.toFixed(2)}</td></tr>
+                                <tr><td>Teacher Payments (80%)</td><td>Rs. ${totalTeacherPayment.toFixed(2)}</td></tr>
+                                <tr><td>Institute Income (20%)</td><td>Rs. ${totalInstituteIncome.toFixed(2)}</td></tr>
+                            </table>
+                        </div>
+
+                        <div class="report-section">
+                            <h3>👨‍🏫 Teacher Payments</h3>
+                            <table>
+                                <tr><th>Teacher Name</th><th>Amount (80%)</th></tr>
+                                ${Object.entries(teacherPayments).map(([name, amount]) => 
+                                    `<tr><td>${name}</td><td>Rs. ${amount.toFixed(2)}</td></tr>`
+                                ).join('')}
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                reportHTML += `
+                    <div class="report-actions">
+                        <button class="btn btn-primary" onclick="copyToWhatsApp('accountsReportContent')">📋 Copy to WhatsApp</button>
+                        <button class="btn btn-warning" onclick="savePDF('accountsReportContent', 'Accounts_${monthName}_${year}')">📄 Save PDF</button>
+                    </div>
+                `;
+
+                document.getElementById('accountsReport').innerHTML = reportHTML;
+            } catch (error) {
+                showAlert('Error generating report', 'error');
+            }
+        });
+
+        // Generate Teacher Report
+        document.getElementById('generateTeacherBtn').addEventListener('click', async () => {
+            const teacherName = document.getElementById('teacherSelect').value;
+            const monthInput = document.getElementById('teacherMonth').value;
+            
+            if (!teacherName || !monthInput) {
+                showAlert('Please select teacher and month', 'error');
+                return;
+            }
+
+            try {
+                const { data: students } = await supabase
+                    .from('sipminireport')
+                    .select('*')
+                    .eq('teachername', teacherName);
+
+                const [year, month] = monthInput.split('-');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthName = monthNames[parseInt(month) - 1];
+
+                let totalAttendance = 0;
+                let paidStudents = 0;
+                let unpaidStudents = 0;
+                let totalIncome = 0;
+
+                students.forEach(s => {
+                    let attended = false;
+                    let paid = false;
+
+                    if (s.sreport) {
+                        const attendances = s.sreport.split(',').map(a => a.trim());
+                        if (attendances.some(a => a.includes(`/${monthName}/${year}`))) {
+                            totalAttendance++;
+                            attended = true;
+                        }
+                    }
+
+                    if (s.payment) {
+                        const payments = s.payment.split(',').map(p => p.trim());
+                        if (payments.some(p => p.includes(`/${monthName}/${year}`))) {
+                            paid = true;
+                            const fee = parseFloat(s.monthly_fee) || 0;
+                            totalIncome += fee * 0.8;
+                        }
+                    }
+
+                    if (attended) {
+                        if (paid) paidStudents++;
+                        else unpaidStudents++;
+                    }
+                });
+
+                let reportHTML = `
+                    <div class="report-container" id="teacherReportContent">
+                        <div class="report-header">
+                            <h2>👨‍🏫 ගුරු වාර්තාව - Teacher Report</h2>
+                            <h3>${teacherName}</h3>
+                            <h4>${monthName} ${year}</h4>
+                        </div>
+
+                        <div class="report-section">
+                            <h3>📊 Summary</h3>
+                            <table>
+                                <tr><th>Description</th><th>Count/Amount</th></tr>
+                                <tr><td>Total Classes</td><td>${students.length}</td></tr>
+                                <tr><td>Total Attendance</td><td>${totalAttendance}</td></tr>
+                                <tr><td>Paid Classes</td><td>${paidStudents}</td></tr>
+                                <tr><td>Unpaid Classes</td><td>${unpaidStudents}</td></tr>
+                                <tr><td><strong>Teacher Income (80%)</strong></td><td><strong>Rs. ${totalIncome.toFixed(2)}</strong></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                reportHTML += `
+                    <div class="report-actions">
+                        <button class="btn btn-primary" onclick="copyToWhatsApp('teacherReportContent')">📋 Copy to WhatsApp</button>
+                        <button class="btn btn-warning" onclick="savePDF('teacherReportContent', 'Teacher_${teacherName}_${monthName}_${year}')">📄 Save PDF</button>
+                    </div>
+                `;
+
+                document.getElementById('teacherReport').innerHTML = reportHTML;
+            } catch (error) {
+                showAlert('Error generating report', 'error');
+            }
+        });
+
+        // Initial load
+        loadStudents();
+    </script>
+</body>
+</html>
